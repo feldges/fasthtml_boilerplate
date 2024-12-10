@@ -1,0 +1,11 @@
+[tool.poetry]
+name = "fasthtml-boilerplate"
+version = "0.1.0"
+description = "This boilerplate is a simple example of how to use FastHTML to create a web application. It contains a simple login system and a database."
+authors = ["Claude Feldges <claude.feldges@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12, <3.13"
+python-fasthtml = "^0.9.1"
+python-dotenv = "^1.0.1"
