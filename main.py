@@ -25,8 +25,13 @@ application_name = "Investment Reports App"
 application_description = Div("""Generate teasers for any company, based on information collected on the internet.
                             This application is based on """, A("STORM", href = "https://storm.genie.stanford.edu/", target="_blank"), """, a framework developed by the Stanford University to generate Wiki pages.
                             It is experimental and may not work as expected.""")
+application_description_txt = """Generate teasers for any company, based on information collected on the internet. This application is based on "STORM", a framework developed by the Stanford University to generate Wiki pages. It is experimental and may not work as expected."""
 
-headers = (MarkdownJS(), picolink, Favicon('favicon.ico', 'favicon.ico'))
+socials = Socials(title=application_name, description=application_description_txt, site_name='storm.aipe.tech',
+    twitter_site='@example', image='assets/images/investment_analyzer_screen.png',
+    url='https://storm.aipe.tech')
+
+headers = (MarkdownJS(), socials, picolink, Favicon('assets/images/favicon.ico', 'assets/images/favicon.ico'))
 app = FastHTML(hdrs=headers)
 
 # ------------------------------------------------------------
@@ -88,7 +93,7 @@ class Auth(OAuth):
             return RedirectResponse('/', status_code=303)
         return RedirectResponse(self.login_path, status_code=303)
 
-oauth = Auth(app, client, skip=[r'/login', r'/redirect', r'/error', r'/favicon\.ico', r'/static/.*', r'.*\.css'])
+oauth = Auth(app, client, skip=[r'/login', r'/redirect', r'/error', r'/favicon\.ico', r'/static/.*', r'/assets/.*', r'.*\.css'])
 # The db access restriction has to be added to the before list AFTER the OAuth authentication
 app.before.append(Beforeware(restrict_db_access, skip=oauth.skip))
 
