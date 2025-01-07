@@ -21,6 +21,10 @@ In terms_of_service.md, you can modify the terms of service.
 
 You can also overwrite the favicon.ico file with you own image.
 
+There is a database in the background that manages the users and the data. By default, it is a sqlite database, which is a database that is stored in a file. No need for configuration in this case. You can work as is.
+If you work on a bigger project, on a cloud, with multiple instances, the use of a file might create issue. You can use a serverless Postgresql database instead. You need to add the following to the .env file:
+- DB_TYPE = postgresql (instead of default value sqlite)
+- DB_URL
 
 ## Installation
 To install the dependencies, run the following command:

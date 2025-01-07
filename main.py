@@ -2,10 +2,18 @@ from fasthtml.oauth import GoogleAppClient, OAuth
 from fasthtml.common import FastHTML, RedirectResponse
 from fasthtml.common import *
 
+from fastsql import Database
+from fastsql.core import _type_map, NotFoundError as postgresql_NotFoundError
+
 from dotenv import load_dotenv
 import os
 from datetime import datetime
+from sqlalchemy import DateTime
+
 load_dotenv()
+
+# Extend type_map before creating tables
+_type_map[datetime] = DateTime  # Add datetime support
 
 try:
     with open('terms_of_service.md', 'r') as file:
@@ -22,20 +30,41 @@ headers = (MarkdownJS(), picolink, Favicon('favicon.ico', 'favicon.ico'))
 app = FastHTML(hdrs=headers)
 
 # ------------------------------------------------------------
-# Database to track users and another entity
-db = database('data/opportunity.db')
-opportunity, user = db.t.opportunity, db.t.user
-if opportunity not in db.t:
-    user.create(id=str, email=str, first_name=str, last_name=str, terms_agreed=bool, terms_agreed_or_rejected_date=datetime, terms_agreed_date_first_time=datetime, pk='id')
-    opportunity.create(id=str, name=str, user_id=str, pk='id')
-# Create types for the database tables
-Opportunity, User = opportunity.dataclass(), user.dataclass()
+# Define datamodels
+class Users:
+    id: str
+    email: str
+    first_name: str
+    last_name: str
+    terms_agreed: bool
+    terms_agreed_or_rejected_date: datetime
+    terms_agreed_date_first_time: datetime
+class Opportunities:
+    id: str
+    name: str
+    user_id: str
+
+# Database can be either sqlite (small projects, local) or postgresql (large projects, cloud with multiple pods)
+db_type = os.getenv("DB_TYPE", "sqlite")
+db_file = os.getenv("DB_FILE", "data/opportunities.db")
+db_url = os.getenv("DB_URL", "")
+
+if db_type == "sqlite":
+    db = database(db_file)
+elif db_type == "postgresql":
+    db = Database('postgresql://claude@localhost:5432/postgres')
+else:
+    raise ValueError(f"Invalid database type: {db_type}")
+
+users = db.create(Users, pk='id')
+opportunities = db.create(Opportunities, pk='id')
+
 
 # Add a before to the app to limit access to the database
 def restrict_db_access(req, session):
     auth = req.scope['auth']
-    opportunity.xtra(user_id=auth)
-    user.xtra(id=auth)
+    opportunities.xtra(user_id=auth)
+    users.xtra(id=auth)
 # ------------------------------------------------------------
 
 # ------------------------------------------------------------
@@ -53,9 +82,9 @@ class Auth(OAuth):
         email = info.email or ''
         if info.email_verified:
             try:
-                u = user[ident]
-            except NotFoundError:
-                u = user.insert(id=ident, email=info.email, first_name=info.given_name, last_name=info.family_name)
+                u = users[ident]
+            except (NotFoundError, postgresql_NotFoundError):
+                u = users.insert(Users(id=ident, email=info.email, first_name=info.given_name, last_name=info.family_name))
             return RedirectResponse('/', status_code=303)
         return RedirectResponse(self.login_path, status_code=303)
 
@@ -74,7 +103,7 @@ def get(fname:str, ext:str): return FileResponse(f'{fname}.{ext}')
 
 @app.get('/')
 def home(auth):
-    if not user[auth].terms_agreed:
+    if not users[auth].terms_agreed:
         return Div(Div("You need to agree to the terms of service before you can use this application. Please read the terms of service and click the button to agree.", style="margin-top: 20px; margin-bottom: 20px;"),
         Div(TERMS_OF_SERVICE, cls='marked', style='border: 1px solid #ccc; border-radius: 8px; padding: 10px; margin-bottom: 20px;'),
         Div(
@@ -84,7 +113,7 @@ def home(auth):
         , style='display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50%; margin: 0 auto;')
 
     return Div(
-        H2(f"Welcome to the {application_name}, {user[auth].first_name} {user[auth].last_name}!"),
+        H2(f"Welcome to the {application_name}, {users[auth].first_name} {users[auth].last_name}!"),
         A('Log out', href='/logout', role='button', style='margin-bottom: 10px;'),
         A('Remove approval terms of service', href='/agree_terms?approve=False', role='button', style='margin-bottom: 10px;'),
         style='display: flex; flex-direction: column; align-items: center; justify-content: center; height: 50vh;'
@@ -102,7 +131,7 @@ def login(req):
 @app.get('/agree_terms')
 def agree_terms(req, auth, approve: bool = None):
     approve = True if approve is None else approve
-    user.update(id=auth, terms_agreed=approve, terms_agreed_or_rejected_date=datetime.now(), terms_agreed_date_first_time=datetime.now() if user[auth].terms_agreed_date_first_time is None else user[auth].terms_agreed_date_first_time)
+    users.update(id=auth, terms_agreed=approve, terms_agreed_or_rejected_date=datetime.now(), terms_agreed_date_first_time=datetime.now() if users[auth].terms_agreed_date_first_time is None else users[auth].terms_agreed_date_first_time)
     if approve:
         return RedirectResponse('/', status_code=303)
     else:
