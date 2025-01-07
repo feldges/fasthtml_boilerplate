@@ -142,4 +142,5 @@ def agree_terms(req, auth, approve: bool = None):
     else:
         return RedirectResponse('/logout', status_code=303)
 
-serve(host='localhost', port=8000)
+if __name__ == "__main__":
+    serve(host='localhost', port=8000)
