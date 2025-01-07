@@ -15,6 +15,8 @@ load_dotenv()
 # Extend type_map before creating tables
 _type_map[datetime] = DateTime  # Add datetime support
 
+# ------------------------------------------------------------
+# Configuration
 try:
     with open('terms_of_service.md', 'r') as file:
         TERMS_OF_SERVICE = file.read()
@@ -27,15 +29,14 @@ application_description = Div("""Generate teasers for any company, based on info
                             It is experimental and may not work as expected.""")
 application_description_txt = """Generate teasers for any company, based on information collected on the internet. This application is based on "STORM", a framework developed by the Stanford University to generate Wiki pages. It is experimental and may not work as expected."""
 
-socials = Socials(title=application_name, description=application_description_txt, site_name='storm.aipe.tech',
-    twitter_site='@example', image='assets/images/investment_analyzer_screen.png',
-    url='https://storm.aipe.tech')
+socials = Socials(title=application_name, description=application_description_txt, site_name='storm.aipe.tech', image='assets/images/investment_analyzer_screen.png', url='https://storm.aipe.tech')
 
 headers = (MarkdownJS(), socials, picolink, Favicon('assets/images/favicon.ico', 'assets/images/favicon.ico'))
 app = FastHTML(hdrs=headers)
+# ------------------------------------------------------------
 
 # ------------------------------------------------------------
-# Define datamodels
+# Define datamodels and Database
 class Users:
     id: str
     email: str
@@ -63,7 +64,6 @@ else:
 
 users = db.create(Users, pk='id')
 opportunities = db.create(Opportunities, pk='id')
-
 
 # Add a before to the app to limit access to the database
 def restrict_db_access(req, session):
