@@ -41,18 +41,35 @@ app_styles = """
 .dropdown {
     position: relative;
     cursor: pointer;
+    width: 24px;
+    height: 24px;
 }
 
-.dropdown-menu {
+#menu-container {
     position: absolute;
     right: 0;
     top: 100%;
+}
+
+.dropdown-menu {
+    position: relative;  /* Changed from absolute since it's inside container */
     background: white;
     border: 1px solid #ddd;
     border-radius: 4px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     min-width: 200px;
     padding-top: 8px;
+    margin-top: 5px;  /* Add space between initials and menu */
+    z-index: 1001;
+}
+
+.menu-underlay {
+    position: fixed;  /* Changed to fixed */
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
 }
 
 .dropdown-menu a {
@@ -141,37 +158,55 @@ def get(fname:str, ext:str): return FileResponse(f'{fname}.{ext}')
 
 # ------------------------------------------------------------
 # FastHTML Application starts here
+def login_header():
+   return Div(
+       Div(
+           # Logo on the far left
+           A(
+               Img(
+                   src='/assets/images/aipe_logo_white.svg',
+                   alt='AIPE Logo',
+                   style='height: 24px; width: auto;'
+               ),
+               href='/',
+               style='text-decoration: none; margin-left: 20px;'
+           ),
+           style='display: flex; justify-content: space-between; align-items: center; padding: 6px 0; width: 100%;'
+       ),
+       style='border-bottom: 1px solid #0055a4; background: #0055a4; width: 100%;'
+   )
 
 # Create the header for the application
+show_menu = False
 def app_header(user):
     initials = f"{user.first_name[0]}{user.last_name[0]}"
-    return Style(app_styles), Div(
+    return Div(
         Div(
-            # Logo on the far left - reduced height from 40px to 32px
+            # Logo on the far left
             A(
                 Img(
                     src='/assets/images/aipe_logo_white.svg',
                     alt='AIPE Logo',
-                    style='height: 24px; width: auto;'  # Reduced from 40px
+                    style='height: 24px; width: auto;'
                 ),
                 href='/',
                 style='text-decoration: none; margin-left: 20px;'
             ),
-            # Profile menu on the right
+            # Profile menu
             Div(
-                # Profile circle - reduced from 40px to 32px
+                # Initials circle with toggle behavior
                 Div(
                     initials,
-                    style='width: 24px; height: 24px; background: white; color: #0055a4; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;',
+                    style='width: 24px; height: 24px; background: white; color: #0055a4; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; position: relative;',
                     hx_get='/toggle_menu',
-                    hx_target='next',
-                    hx_swap='outerHTML'
+                    hx_target='#menu-container',
+                    hx_swap='outerHTML transition:true'
                 ),
+                # Menu container - keep it simple
                 Div(id='menu-container'),
                 cls='dropdown',
                 style='margin-right: 20px;'
             ),
-            # Reduced padding from 16px to 12px
             style='display: flex; justify-content: space-between; align-items: center; padding: 6px 0; width: 100%;'
         ),
         style='border-bottom: 1px solid #0055a4; background: #0055a4; width: 100%;'
@@ -179,20 +214,35 @@ def app_header(user):
 
 # Handler for toggle_menu endpoint
 @app.get('/toggle_menu')
-def toggle_menu(req):
-    # Return either empty div or menu depending on current state
-    if 'menu_visible' not in req.session:
-        req.session['menu_visible'] = True
+def toggle_menu():
+    global show_menu
+    show_menu = not show_menu
+    if show_menu:
         return Div(
-            A('Terms of Service', href='/terms_of_service'),
-            A('Privacy Policy', href='/privacy_policy'),
-            A('Log out', href='/logout'),
-            cls='dropdown-menu',
+            # First div is the underlay for catching clicks
+            Div(
+                cls='menu-underlay',
+                hx_get='/hide_menu',
+                hx_target='#menu-container',
+                hx_swap='outerHTML'
+            ),
+            # Second div is the menu content
+            Div(
+                A('Terms of Service', href='/terms_of_service'),
+                A('Privacy Policy', href='/privacy_policy'),
+                A('Log out', href='/logout'),
+                cls='dropdown-menu'
+            ),
             id='menu-container'
         )
     else:
-        del req.session['menu_visible']
         return Div(id='menu-container')
+
+@app.get('/hide_menu')
+def hide_menu():
+    global show_menu
+    show_menu = not show_menu
+    return Div(id='menu-container')
 
 @app.get('/')
 def home(auth):
@@ -225,7 +275,7 @@ def home(auth):
 
 @app.get('/login')
 def login(req):
-    return Title("Login"), Div(
+    return Title("Login"), login_header(), Div(
             H1(application_name),
             Div(application_description, style='margin: 0 auto 10px auto; width: 100%; max-width: 600px; text-align: justify; padding: 0 20px;'),
             Div(
@@ -260,14 +310,17 @@ def login(req):
 
 @app.get('/terms_of_service')
 def terms_of_service(req):
-        return Title("Terms of Service"), Div(
-            Div(
-                TERMS_OF_SERVICE,
-                cls='marked',
-                style='border: 1px solid #ccc; border-radius: 8px; padding: 20px; max-width: 800px; font-size: 0.9em;'
-            ),
-            style='display: flex; justify-content: center; align-items: start; min-height: 100vh; padding: 40px 20px;'
-        )
+    if 'show_menu' in globals():
+        show_menu = False
+        # trigger htmx to hide the menu
+    return Title("Terms of Service"), Div(
+        Div(
+            TERMS_OF_SERVICE,
+            cls='marked',
+            style='border: 1px solid #ccc; border-radius: 8px; padding: 20px; max-width: 800px; font-size: 0.9em;'
+        ),
+        style='display: flex; justify-content: center; align-items: start; min-height: 100vh; padding: 40px 20px;'
+    )
 
 @app.get('/privacy_policy')
 def privacy_policy():
