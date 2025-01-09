@@ -18,10 +18,16 @@ _type_map[datetime] = DateTime  # Add datetime support
 # ------------------------------------------------------------
 # Configuration
 try:
-    with open('terms_of_service.md', 'r') as file:
+    with open('assets/legal/terms_of_service.md', 'r') as file:
         TERMS_OF_SERVICE = file.read()
 except FileNotFoundError:
     TERMS_OF_SERVICE = "Terms of service file not found."
+
+try:
+    with open('assets/legal/privacy_policy.md', 'r') as file:
+        PRIVACY_POLICY = file.read()
+except FileNotFoundError:
+    PRIVACY_POLICY = "Privacy policy file not found."
 
 application_name = "Investment Reports App"
 application_description = Div("""Generate teasers for any company, based on information collected on the internet.
@@ -29,7 +35,7 @@ application_description = Div("""Generate teasers for any company, based on info
                             It is experimental and may not work as expected.""")
 application_description_txt = """Generate teasers for any company, based on information collected on the internet. This application is based on "STORM", a framework developed by the Stanford University to generate Wiki pages. It is experimental and may not work as expected."""
 
-socials = Socials(title=application_name, description=application_description_txt, site_name='storm.aipe.tech', image='assets/images/investment_analyzer_screen.png', url='https://storm.aipe.tech')
+socials = Socials(title=application_name, description=application_description_txt, site_name='storm.aipe.tech', image='https://storm.aipe.tech/assets/images/investment_analyzer_screen.png', url='https://storm.aipe.tech')
 
 headers = (MarkdownJS(), socials, picolink, Favicon('assets/images/favicon.ico', 'assets/images/favicon.ico'))
 app = FastHTML(hdrs=headers)
@@ -93,7 +99,7 @@ class Auth(OAuth):
             return RedirectResponse('/', status_code=303)
         return RedirectResponse(self.login_path, status_code=303)
 
-oauth = Auth(app, client, skip=[r'/login', r'/redirect', r'/error', r'/favicon\.ico', r'/static/.*', r'/assets/.*', r'.*\.css'])
+oauth = Auth(app, client, skip=[r'/login', r'/redirect', r'/error', r'/terms_of_service', r'/privacy_policy', r'/favicon\.ico', r'/static/.*', r'/assets/.*', r'.*\.css'])
 # The db access restriction has to be added to the before list AFTER the OAuth authentication
 app.before.append(Beforeware(restrict_db_access, skip=oauth.skip))
 
@@ -128,10 +134,57 @@ def home(auth):
 def login(req):
     return Div(
             H1(application_name),
-            Div(application_description, style='margin-bottom: 20px; max-width: 30%; text-align: justify;'),
-            A('Log in', href=oauth.login_link(req), role='button'),
+            Div(application_description, style='margin: 0 auto 10px auto; width: 100%; max-width: 600px; text-align: justify; padding: 0 20px;'),
+            Div(
+                A(
+                    Img(src='/assets/images/google-logo.svg',
+                        style='''
+                            height: 40px;
+                            cursor: pointer;
+                            transition: all 0.2s ease;
+                        ''',
+                        onmouseover="this.style.transform='translateY(-3px) scale(1.05)'; this.style.filter='drop-shadow(0 4px 6px rgba(0,0,0,0.1))'",
+                        onmouseout="this.style.transform='translateY(0) scale(1)'; this.style.filter='none'"
+                    ),
+                    href=oauth.login_link(req)
+                ),
+                style='display: flex; justify-content: center; margin: 20px 0;'
+            ),
+            Div(
+                Div(
+                    A('Terms of Service', href='/terms_of_service', target='_blank'),
+                    style='flex: 1; display: flex; justify-content: center; font-size: 0.8rem;'
+                ),
+                Div(
+                    A('Privacy Policy', href='/privacy_policy', target='_blank'),
+                    style='flex: 1; display: flex; justify-content: center; font-size: 0.8rem;'
+                ),
+                style='margin-top: 20px; display: flex; width: 100%; max-width: 600px;'
+            ),
             style='display: flex; flex-direction: column; align-items: center; justify-content: center; height: 50vh;'
             )
+
+@app.get('/terms_of_service')
+def terms_of_service(req):
+        return Div(
+            Div(
+                TERMS_OF_SERVICE,
+                cls='marked',
+                style='border: 1px solid #ccc; border-radius: 8px; padding: 20px; max-width: 800px; font-size: 0.9em;'
+            ),
+            style='display: flex; justify-content: center; align-items: start; min-height: 100vh; padding: 40px 20px;'
+        )
+
+@app.get('/privacy_policy')
+def privacy_policy():
+        return Div(
+            Div(
+                PRIVACY_POLICY,
+                cls='marked',
+                style='border: 1px solid #ccc; border-radius: 8px; padding: 20px; max-width: 800px; font-size: 0.9em;'
+            ),
+            style='display: flex; justify-content: center; align-items: start; min-height: 100vh; padding: 40px 20px;'
+        )
 
 @app.get('/agree_terms')
 def agree_terms(req, auth, approve: bool = None):
