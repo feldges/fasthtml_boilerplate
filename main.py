@@ -152,7 +152,7 @@ def app_header(user):
                 Img(
                     src='/assets/images/aipe_logo_white.svg',
                     alt='AIPE Logo',
-                    style='height: 28px; width: auto;'  # Reduced from 40px
+                    style='height: 24px; width: auto;'  # Reduced from 40px
                 ),
                 href='/',
                 style='text-decoration: none; margin-left: 20px;'
@@ -162,7 +162,7 @@ def app_header(user):
                 # Profile circle - reduced from 40px to 32px
                 Div(
                     initials,
-                    style='width: 28px; height: 28px; background: white; color: #0055a4; border-radius: 50%; display: flex; align-items: center; justify-content: center;',
+                    style='width: 24px; height: 24px; background: white; color: #0055a4; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;',
                     hx_get='/toggle_menu',
                     hx_target='next',
                     hx_swap='outerHTML'
@@ -172,7 +172,7 @@ def app_header(user):
                 style='margin-right: 20px;'
             ),
             # Reduced padding from 16px to 12px
-            style='display: flex; justify-content: space-between; align-items: center; padding: 8px 0; width: 100%;'
+            style='display: flex; justify-content: space-between; align-items: center; padding: 6px 0; width: 100%;'
         ),
         style='border-bottom: 1px solid #0055a4; background: #0055a4; width: 100%;'
     )
