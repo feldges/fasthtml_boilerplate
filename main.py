@@ -37,7 +37,37 @@ application_description_txt = """Generate teasers for any company, based on info
 
 socials = Socials(title=application_name, description=application_description_txt, site_name='storm.aipe.tech', image='https://storm.aipe.tech/assets/images/investment_analyzer_screen.png', url='https://storm.aipe.tech')
 
-headers = (MarkdownJS(), socials, picolink, Favicon('assets/images/favicon.ico', 'assets/images/favicon.ico'))
+app_styles = """
+.dropdown {
+    position: relative;
+    cursor: pointer;
+}
+
+.dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    min-width: 200px;
+    padding-top: 8px;
+}
+
+.dropdown-menu a {
+    display: block;
+    padding: 8px 16px;
+    text-decoration: none;
+    color: black;
+}
+
+.dropdown-menu a:hover {
+    background-color: #f5f5f5;
+}
+"""
+
+headers = (MarkdownJS(), Style(app_styles), socials, picolink, Favicon('assets/images/favicon.ico', 'assets/images/favicon.ico'))
 app = FastHTML(title=application_name, hdrs=headers)
 # ------------------------------------------------------------
 
@@ -112,6 +142,58 @@ def get(fname:str, ext:str): return FileResponse(f'{fname}.{ext}')
 # ------------------------------------------------------------
 # FastHTML Application starts here
 
+# Create the header for the application
+def app_header(user):
+    initials = f"{user.first_name[0]}{user.last_name[0]}"
+    return Style(app_styles), Div(
+        Div(
+            # Logo on the far left - reduced height from 40px to 32px
+            A(
+                Img(
+                    src='/assets/images/aipe_logo_white.svg',
+                    alt='AIPE Logo',
+                    style='height: 28px; width: auto;'  # Reduced from 40px
+                ),
+                href='/',
+                style='text-decoration: none; margin-left: 20px;'
+            ),
+            # Profile menu on the right
+            Div(
+                # Profile circle - reduced from 40px to 32px
+                Div(
+                    initials,
+                    style='width: 28px; height: 28px; background: white; color: #0055a4; border-radius: 50%; display: flex; align-items: center; justify-content: center;',
+                    hx_get='/toggle_menu',
+                    hx_target='next',
+                    hx_swap='outerHTML'
+                ),
+                Div(id='menu-container'),
+                cls='dropdown',
+                style='margin-right: 20px;'
+            ),
+            # Reduced padding from 16px to 12px
+            style='display: flex; justify-content: space-between; align-items: center; padding: 8px 0; width: 100%;'
+        ),
+        style='border-bottom: 1px solid #0055a4; background: #0055a4; width: 100%;'
+    )
+
+# Handler for toggle_menu endpoint
+@app.get('/toggle_menu')
+def toggle_menu(req):
+    # Return either empty div or menu depending on current state
+    if 'menu_visible' not in req.session:
+        req.session['menu_visible'] = True
+        return Div(
+            A('Terms of Service', href='/terms_of_service'),
+            A('Privacy Policy', href='/privacy_policy'),
+            A('Log out', href='/logout'),
+            cls='dropdown-menu',
+            id='menu-container'
+        )
+    else:
+        del req.session['menu_visible']
+        return Div(id='menu-container')
+
 @app.get('/')
 def home(auth):
     if not users[auth].terms_agreed:
@@ -134,7 +216,7 @@ def home(auth):
         style='display: flex; justify-content: center; align-items: start; min-height: 100vh; padding: 40px 20px;'
         )
 
-    return Title(application_name), Div(
+    return Title(application_name), app_header(users[auth]), Div(
         H2(f"Welcome to the {application_name}, {users[auth].first_name} {users[auth].last_name}!"),
         A('Log out', href='/logout', role='button', style='margin-bottom: 10px;'),
         A('Remove approval terms of service', href='/agree_terms?approve=False', role='button', style='margin-bottom: 10px;'),
