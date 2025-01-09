@@ -22,4 +22,7 @@ This is an experimental showcase provided "as is" without warranties of any kind
 
 ## Contact
 Claude Feldges - claude@aipetech.com
+
 By using this service, you acknowledge these terms.
+
+*Last updated: 8 Jan 2025*

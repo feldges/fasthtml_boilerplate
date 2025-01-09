@@ -38,7 +38,7 @@ application_description_txt = """Generate teasers for any company, based on info
 socials = Socials(title=application_name, description=application_description_txt, site_name='storm.aipe.tech', image='https://storm.aipe.tech/assets/images/investment_analyzer_screen.png', url='https://storm.aipe.tech')
 
 headers = (MarkdownJS(), socials, picolink, Favicon('assets/images/favicon.ico', 'assets/images/favicon.ico'))
-app = FastHTML(hdrs=headers)
+app = FastHTML(title=application_name, hdrs=headers)
 # ------------------------------------------------------------
 
 # ------------------------------------------------------------
@@ -115,15 +115,26 @@ def get(fname:str, ext:str): return FileResponse(f'{fname}.{ext}')
 @app.get('/')
 def home(auth):
     if not users[auth].terms_agreed:
-        return Div(Div("You need to agree to the terms of service before you can use this application. Please read the terms of service and click the button to agree.", style="margin-top: 20px; margin-bottom: 20px;"),
-        Div(TERMS_OF_SERVICE, cls='marked', style='border: 1px solid #ccc; border-radius: 8px; padding: 10px; margin-bottom: 20px;'),
+        return Title(application_name), Div(
         Div(
-            "By clicking on 'Agree', I confirm that I have read and agree with the terms of service.",
-            A('Agree', href='/agree_terms', role='button', style='margin-left: 10px;'),
-            style='display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: 10px; width: 100%;')
-        , style='display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50%; margin: 0 auto;')
+            Div("You need to agree to the terms of service before you can use this application. Please read the terms of service and click the button to agree.", 
+                style="margin-bottom: 20px;"),
+            Div(
+                TERMS_OF_SERVICE,
+                cls='marked',
+                style='border: 1px solid #ccc; border-radius: 8px; padding: 20px; max-width: 800px; font-size: 0.9em;'
+            ),
+            Div(
+                "By clicking on 'Agree', I confirm that I have read and agree with the terms of service.",
+                A('Agree', href='/agree_terms', role='button', style='margin-left: 10px;'),
+                style='display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top: 20px; width: 100%;'
+            ),
+            style='max-width: 800px;'  # This constrains the content width
+        ),
+        style='display: flex; justify-content: center; align-items: start; min-height: 100vh; padding: 40px 20px;'
+        )
 
-    return Div(
+    return Title(application_name), Div(
         H2(f"Welcome to the {application_name}, {users[auth].first_name} {users[auth].last_name}!"),
         A('Log out', href='/logout', role='button', style='margin-bottom: 10px;'),
         A('Remove approval terms of service', href='/agree_terms?approve=False', role='button', style='margin-bottom: 10px;'),
@@ -132,16 +143,17 @@ def home(auth):
 
 @app.get('/login')
 def login(req):
-    return Div(
+    return Title("Login"), Div(
             H1(application_name),
             Div(application_description, style='margin: 0 auto 10px auto; width: 100%; max-width: 600px; text-align: justify; padding: 0 20px;'),
             Div(
                 A(
                     Img(src='/assets/images/google-logo.svg',
                         style='''
-                            height: 40px;
                             cursor: pointer;
                             transition: all 0.2s ease;
+                            border: 1px solid #ddd;
+                            border-radius: 4px;
                         ''',
                         onmouseover="this.style.transform='translateY(-3px) scale(1.05)'; this.style.filter='drop-shadow(0 4px 6px rgba(0,0,0,0.1))'",
                         onmouseout="this.style.transform='translateY(0) scale(1)'; this.style.filter='none'"
@@ -166,7 +178,7 @@ def login(req):
 
 @app.get('/terms_of_service')
 def terms_of_service(req):
-        return Div(
+        return Title("Terms of Service"), Div(
             Div(
                 TERMS_OF_SERVICE,
                 cls='marked',
@@ -177,7 +189,7 @@ def terms_of_service(req):
 
 @app.get('/privacy_policy')
 def privacy_policy():
-        return Div(
+        return Title("Privacy Policy"), Div(
             Div(
                 PRIVACY_POLICY,
                 cls='marked',
