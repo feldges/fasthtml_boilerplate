@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import os
 from datetime import datetime
 from sqlalchemy import DateTime
+from copy import deepcopy
 
 load_dotenv()
 
@@ -111,7 +112,7 @@ db_url = os.getenv("DB_URL", "")
 if db_type == "sqlite":
     db = database(db_file)
 elif db_type == "postgresql":
-    db = Database('postgresql://claude@localhost:5432/postgres')
+    db = Database(db_url)
 else:
     raise ValueError(f"Invalid database type: {db_type}")
 
@@ -123,6 +124,15 @@ def restrict_db_access(req, session):
     auth = req.scope['auth']
     opportunities.xtra(user_id=auth)
     users.xtra(id=auth)
+
+# Add a before to the app to check if the user has agreed to the terms of service
+def check_terms_agreed(req, session):
+    auth = session.get('auth')
+    print("Auth", auth)
+    print(users[auth].terms_agreed)
+    if not users[auth].terms_agreed:
+        return RedirectResponse('/terms_of_service', status_code=303)
+    return None
 # ------------------------------------------------------------
 
 # ------------------------------------------------------------
@@ -146,9 +156,12 @@ class Auth(OAuth):
             return RedirectResponse('/', status_code=303)
         return RedirectResponse(self.login_path, status_code=303)
 
-oauth = Auth(app, client, skip=[r'/login', r'/redirect', r'/error', r'/terms_of_service', r'/privacy_policy', r'/favicon\.ico', r'/static/.*', r'/assets/.*', r'.*\.css'])
+oauth = Auth(app, client, skip=[r'/login', r'/redirect', r'/error', r'/logout', r'/privacy_policy', r'/terms_of_service', r'/favicon\.ico', r'/static/.*', r'/assets/.*', r'.*\.css'])
 # The db access restriction has to be added to the before list AFTER the OAuth authentication
 app.before.append(Beforeware(restrict_db_access, skip=oauth.skip))
+skip_list_check_terms = deepcopy(oauth.skip)
+skip_list_check_terms.append(r'/agree_terms')
+app.before.append(Beforeware(check_terms_agreed, skip=skip_list_check_terms))
 
 # This is needed to serve the favicon.ico file (and potentially other static files)
 # If you use fast_app instead of FastHTML, this is not needed as this has been integrated in fast_app already
@@ -228,7 +241,7 @@ def toggle_menu():
             ),
             # Second div is the menu content
             Div(
-                A('Terms of Service', href='/terms_of_service_internal'),
+                A('Terms of Service', href='/terms_of_service'),
                 A('Privacy Policy', href='/privacy_policy'),
                 A('Log out', href='/logout'),
                 cls='dropdown-menu'
@@ -280,27 +293,48 @@ def login(req):
             )
 
 @app.get('/terms_of_service')
-def terms_of_service(req):
+def terms_of_service(req, session):
     if 'show_menu' in globals():
         show_menu = False
         # trigger htmx to hide the menu
+    auth = session.get('auth')
+    preamble = Div("")
+    button = Div("")
+    if auth:
+        if users[auth].terms_agreed:
+            preamble = Div(
+                "You have already agreed to the terms of service. If you want to remove your approval, click on the button below.",
+                style="margin-bottom: 20px;"
+            )
+            button = Div(
+                "By clicking on 'Remove approval', I confirm that I want to remove my approval of the terms of service. As a consequence, I will not be able to use this application anymore.",
+                A('Remove approval', href='/agree_terms?approve=False', role='button', style='margin-left: 10px;'),
+                style='display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top: 20px; width: 100%;'
+            )
+        else:
+            preamble = Div(
+                "You need to agree to the terms of service before you can use this application. Please read the terms of service and click the button to agree.",
+                style="margin-bottom: 20px;"
+            )
+            button = Div(
+                "By clicking on 'Agree', I confirm that I have read and agree with the terms of service.",
+                A('Agree', href='/agree_terms', role='button', style='margin-left: 10px;'),
+                style='display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top: 20px; width: 100%;'
+            )
 
     return Title("Terms of Service"), Div(
         Div(
-            TERMS_OF_SERVICE,
-            cls='marked',
-            style='border: 1px solid #ccc; border-radius: 8px; padding: 20px; max-width: 800px; font-size: 0.9em;'
+            preamble,
+            Div(
+                TERMS_OF_SERVICE,
+                cls='marked',
+                style='border: 1px solid #ccc; border-radius: 8px; padding: 20px; max-width: 800px; font-size: 0.9em;'
+            ),
+            button,
+            style='max-width: 800px;'
         ),
         style='display: flex; justify-content: center; align-items: start; min-height: 100vh; padding: 40px 20px;'
     )
-
-@app.get('/terms_of_service_internal')
-def terms_of_service(req):
-    if 'show_menu' in globals():
-        show_menu = False
-        # trigger htmx to hide the menu
-
-    return Title("Terms of Service"), confirm_terms(req.scope.get('auth'))
 
 @app.get('/privacy_policy')
 def privacy_policy():
@@ -314,62 +348,24 @@ def privacy_policy():
         )
 
 @app.get('/agree_terms')
-def agree_terms(req, auth, approve: bool = None):
+def agree_terms(req, session, approve: bool = None):
+    auth = session.get('auth')
+    print("Auth in agree_terms", auth)
     approve = True if approve is None else approve
-    print(approve)
     users.update(id=auth, terms_agreed=approve, terms_agreed_or_rejected_date=datetime.now(), terms_agreed_date_first_time=datetime.now() if users[auth].terms_agreed_date_first_time is None else users[auth].terms_agreed_date_first_time)
     if approve:
         return RedirectResponse('/', status_code=303)
     else:
         return RedirectResponse('/logout', status_code=303)
 
-def confirm_terms_preamble(auth):
-    if users[auth].terms_agreed:
-        return Div("If you want to remove your approval, click on the button below.", style="margin-bottom: 20px;")
-    else:
-        return Div("You need to agree to the terms of service before you can use this application. Please read the terms of service and click the button to agree.", style="margin-bottom: 20px;")
-
-def confirm_terms_button(auth):
-    if users[auth].terms_agreed:
-        return Div(
-                "By clicking on 'Remove approval', I confirm that I want to remove my approval of the terms of service. As a consequence, I will not be able to use this application anymore.",
-                A('Remove approval', href='/agree_terms?approve=False', role='button', style='margin-left: 10px;'),
-                style='display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top: 20px; width: 100%;'
-            ),
-    else:
-        return Div(
-                "By clicking on 'Agree', I confirm that I have read and agree with the terms of service.",
-                A('Agree', href='/agree_terms', role='button', style='margin-left: 10px;'),
-                style='display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top: 20px; width: 100%;'
-            ),
-
-def confirm_terms(auth):
-    return Title(application_name), Div(
-        Div(
-            confirm_terms_preamble(auth),
-            Div(
-                TERMS_OF_SERVICE,
-                cls='marked',
-                style='border: 1px solid #ccc; border-radius: 8px; padding: 20px; max-width: 800px; font-size: 0.9em;'
-            ),
-            confirm_terms_button(auth),
-            style='max-width: 800px;'
-        ),
-        style='display: flex; justify-content: center; align-items: start; min-height: 100vh; padding: 40px 20px;'
-        )
-
 # ------------------------------------------------------------
 # This is where the real application starts
 
 @app.get('/')
 def home(auth):
-    if not users[auth].terms_agreed:
-        return confirm_terms(auth)
-
     return Title(application_name), app_header(users[auth]), Div(
         H2(f"Welcome to the {application_name}, {users[auth].first_name} {users[auth].last_name}!"),
         P("This is where you can build your application"),
-        A('Remove approval terms of service', href='/agree_terms?approve=False', role='button', style='margin-bottom: 10px;'),
         style='display: flex; flex-direction: column; align-items: center; justify-content: center; height: 50vh;'
         )
 
