@@ -228,7 +228,7 @@ def toggle_menu():
             ),
             # Second div is the menu content
             Div(
-                A('Terms of Service', href='/terms_of_service'),
+                A('Terms of Service', href='/terms_of_service_internal'),
                 A('Privacy Policy', href='/privacy_policy'),
                 A('Log out', href='/logout'),
                 cls='dropdown-menu'
@@ -243,35 +243,6 @@ def hide_menu():
     global show_menu
     show_menu = not show_menu
     return Div(id='menu-container')
-
-@app.get('/')
-def home(auth):
-    if not users[auth].terms_agreed:
-        return Title(application_name), Div(
-        Div(
-            Div("You need to agree to the terms of service before you can use this application. Please read the terms of service and click the button to agree.", 
-                style="margin-bottom: 20px;"),
-            Div(
-                TERMS_OF_SERVICE,
-                cls='marked',
-                style='border: 1px solid #ccc; border-radius: 8px; padding: 20px; max-width: 800px; font-size: 0.9em;'
-            ),
-            Div(
-                "By clicking on 'Agree', I confirm that I have read and agree with the terms of service.",
-                A('Agree', href='/agree_terms', role='button', style='margin-left: 10px;'),
-                style='display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top: 20px; width: 100%;'
-            ),
-            style='max-width: 800px;'  # This constrains the content width
-        ),
-        style='display: flex; justify-content: center; align-items: start; min-height: 100vh; padding: 40px 20px;'
-        )
-
-    return Title(application_name), app_header(users[auth]), Div(
-        H2(f"Welcome to the {application_name}, {users[auth].first_name} {users[auth].last_name}!"),
-        A('Log out', href='/logout', role='button', style='margin-bottom: 10px;'),
-        A('Remove approval terms of service', href='/agree_terms?approve=False', role='button', style='margin-bottom: 10px;'),
-        style='display: flex; flex-direction: column; align-items: center; justify-content: center; height: 50vh;'
-        )
 
 @app.get('/login')
 def login(req):
@@ -313,6 +284,7 @@ def terms_of_service(req):
     if 'show_menu' in globals():
         show_menu = False
         # trigger htmx to hide the menu
+
     return Title("Terms of Service"), Div(
         Div(
             TERMS_OF_SERVICE,
@@ -321,6 +293,14 @@ def terms_of_service(req):
         ),
         style='display: flex; justify-content: center; align-items: start; min-height: 100vh; padding: 40px 20px;'
     )
+
+@app.get('/terms_of_service_internal')
+def terms_of_service(req):
+    if 'show_menu' in globals():
+        show_menu = False
+        # trigger htmx to hide the menu
+
+    return Title("Terms of Service"), confirm_terms(req.scope.get('auth'))
 
 @app.get('/privacy_policy')
 def privacy_policy():
@@ -336,11 +316,62 @@ def privacy_policy():
 @app.get('/agree_terms')
 def agree_terms(req, auth, approve: bool = None):
     approve = True if approve is None else approve
+    print(approve)
     users.update(id=auth, terms_agreed=approve, terms_agreed_or_rejected_date=datetime.now(), terms_agreed_date_first_time=datetime.now() if users[auth].terms_agreed_date_first_time is None else users[auth].terms_agreed_date_first_time)
     if approve:
         return RedirectResponse('/', status_code=303)
     else:
         return RedirectResponse('/logout', status_code=303)
+
+def confirm_terms_preamble(auth):
+    if users[auth].terms_agreed:
+        return Div("If you want to remove your approval, click on the button below.", style="margin-bottom: 20px;")
+    else:
+        return Div("You need to agree to the terms of service before you can use this application. Please read the terms of service and click the button to agree.", style="margin-bottom: 20px;")
+
+def confirm_terms_button(auth):
+    if users[auth].terms_agreed:
+        return Div(
+                "By clicking on 'Remove approval', I confirm that I want to remove my approval of the terms of service. As a consequence, I will not be able to use this application anymore.",
+                A('Remove approval', href='/agree_terms?approve=False', role='button', style='margin-left: 10px;'),
+                style='display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top: 20px; width: 100%;'
+            ),
+    else:
+        return Div(
+                "By clicking on 'Agree', I confirm that I have read and agree with the terms of service.",
+                A('Agree', href='/agree_terms', role='button', style='margin-left: 10px;'),
+                style='display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top: 20px; width: 100%;'
+            ),
+
+def confirm_terms(auth):
+    return Title(application_name), Div(
+        Div(
+            confirm_terms_preamble(auth),
+            Div(
+                TERMS_OF_SERVICE,
+                cls='marked',
+                style='border: 1px solid #ccc; border-radius: 8px; padding: 20px; max-width: 800px; font-size: 0.9em;'
+            ),
+            confirm_terms_button(auth),
+            style='max-width: 800px;'
+        ),
+        style='display: flex; justify-content: center; align-items: start; min-height: 100vh; padding: 40px 20px;'
+        )
+
+# ------------------------------------------------------------
+# This is where the real application starts
+
+@app.get('/')
+def home(auth):
+    if not users[auth].terms_agreed:
+        return confirm_terms(auth)
+
+    return Title(application_name), app_header(users[auth]), Div(
+        H2(f"Welcome to the {application_name}, {users[auth].first_name} {users[auth].last_name}!"),
+        P("This is where you can build your application"),
+        A('Remove approval terms of service', href='/agree_terms?approve=False', role='button', style='margin-bottom: 10px;'),
+        style='display: flex; flex-direction: column; align-items: center; justify-content: center; height: 50vh;'
+        )
 
 if __name__ == "__main__":
     serve(host='localhost', port=8000)
