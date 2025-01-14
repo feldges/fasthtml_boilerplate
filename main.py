@@ -128,8 +128,6 @@ def restrict_db_access(req, session):
 # Add a before to the app to check if the user has agreed to the terms of service
 def check_terms_agreed(req, session):
     auth = session.get('auth')
-    print("Auth", auth)
-    print(users[auth].terms_agreed)
     if not users[auth].terms_agreed:
         return RedirectResponse('/terms_of_service', status_code=303)
     return None
@@ -297,7 +295,6 @@ def privacy_policy():
 @app.get('/agree_terms')
 def agree_terms(req, session, approve: bool = None):
     auth = session.get('auth')
-    print("Auth in agree_terms", auth)
     approve = True if approve is None else approve
     users.update(id=auth, terms_agreed=approve, terms_agreed_or_rejected_date=datetime.now(), terms_agreed_date_first_time=datetime.now() if users[auth].terms_agreed_date_first_time is None else users[auth].terms_agreed_date_first_time)
     if approve:
