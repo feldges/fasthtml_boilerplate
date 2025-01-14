@@ -171,59 +171,6 @@ def get(fname:str, ext:str): return FileResponse(f'{fname}.{ext}')
 
 # ------------------------------------------------------------
 # FastHTML Application starts here
-def login_header():
-   return Div(
-       Div(
-           # Logo on the far left
-           A(
-               Img(
-                   src='/assets/images/aipe_logo_white.svg',
-                   alt='AIPE Logo',
-                   style='height: 24px; width: auto;'
-               ),
-               href='/',
-               style='text-decoration: none; margin-left: 20px;'
-           ),
-           style='display: flex; justify-content: space-between; align-items: center; padding: 6px 0; width: 100%;'
-       ),
-       style='border-bottom: 1px solid #0055a4; background: #0055a4; width: 100%;'
-   )
-
-# Create the header for the application
-show_menu = False
-def app_header(user):
-    initials = f"{user.first_name[0]}{user.last_name[0]}"
-    return Div(
-        Div(
-            # Logo on the far left
-            A(
-                Img(
-                    src='/assets/images/aipe_logo_white.svg',
-                    alt='AIPE Logo',
-                    style='height: 24px; width: auto;'
-                ),
-                href='/',
-                style='text-decoration: none; margin-left: 20px;'
-            ),
-            # Profile menu
-            Div(
-                # Initials circle with toggle behavior
-                Div(
-                    initials,
-                    style='width: 24px; height: 24px; background: white; color: #0055a4; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; position: relative;',
-                    hx_get='/toggle_menu',
-                    hx_target='#menu-container',
-                    hx_swap='outerHTML transition:true'
-                ),
-                # Menu container - keep it simple
-                Div(id='menu-container'),
-                cls='dropdown',
-                style='margin-right: 20px;'
-            ),
-            style='display: flex; justify-content: space-between; align-items: center; padding: 6px 0; width: 100%;'
-        ),
-        style='border-bottom: 1px solid #0055a4; background: #0055a4; width: 100%;'
-    )
 
 # Handler for toggle_menu endpoint
 @app.get('/toggle_menu')
@@ -357,6 +304,60 @@ def agree_terms(req, session, approve: bool = None):
         return RedirectResponse('/', status_code=303)
     else:
         return RedirectResponse('/logout', status_code=303)
+
+def login_header():
+   return Div(
+       Div(
+           # Logo on the far left
+           A(
+               Img(
+                   src='/assets/images/aipe_logo_white.svg',
+                   alt='AIPE Logo',
+                   style='height: 24px; width: auto;'
+               ),
+               href='/',
+               style='text-decoration: none; margin-left: 20px;'
+           ),
+           style='display: flex; justify-content: space-between; align-items: center; padding: 6px 0; width: 100%;'
+       ),
+       style='border-bottom: 1px solid #0055a4; background: #0055a4; width: 100%;'
+   )
+
+# Create the header for the application
+show_menu = False
+def app_header(user):
+    initials = f"{user.first_name[0]}{user.last_name[0]}"
+    return Div(
+        Div(
+            # Logo on the far left
+            A(
+                Img(
+                    src='/assets/images/aipe_logo_white.svg',
+                    alt='AIPE Logo',
+                    style='height: 24px; width: auto;'
+                ),
+                href='/',
+                style='text-decoration: none; margin-left: 20px;'
+            ),
+            # Profile menu
+            Div(
+                # Initials circle with toggle behavior
+                Div(
+                    initials,
+                    style='width: 24px; height: 24px; background: white; color: #0055a4; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; position: relative;',
+                    hx_get='/toggle_menu',
+                    hx_target='#menu-container',
+                    hx_swap='outerHTML transition:true'
+                ),
+                # Menu container - keep it simple
+                Div(id='menu-container'),
+                cls='dropdown',
+                style='margin-right: 20px;'
+            ),
+            style='display: flex; justify-content: space-between; align-items: center; padding: 6px 0; width: 100%;'
+        ),
+        style='border-bottom: 1px solid #0055a4; background: #0055a4; width: 100%;'
+    )
 
 # ------------------------------------------------------------
 # This is where the real application starts
